@@ -15,11 +15,12 @@ impl<'a> CompressedGitObject<'a> {
     CompressedGitObject { content }
   }
 
-  // pub fn parse(&self) -> GitObject {
-  //   GitObject{
+  pub fn parse(&self) -> Result<(ObjectTypes, u64, Vec<u8>), CompressedGitObjectError> {
+    let (header, content) = split_object(&self.content)?;
+    let (object_type, length) = parse_header(&header)?;
 
-  //   }
-  // }
+    Ok((object_type, length, content))
+  }
 }
 
 fn inflate<'a>(value: &'a Vec<u8>) -> Vec<u8> {
@@ -30,13 +31,6 @@ fn inflate<'a>(value: &'a Vec<u8>) -> Vec<u8> {
   d.read_to_end(&mut ret).unwrap();
 
   ret
-}
-
-fn parse_object(value: &Vec<u8>) -> Result<(ObjectTypes, u64, Vec<u8>), CompressedGitObjectError> {
-  let (header, content) = split_object(&value)?;
-  let (object_type, length) = parse_header(&header)?;
-
-  Ok((object_type, length, content))
 }
 
 fn split_object(value: &Vec<u8>) -> Result<(String, Vec<u8>), CompressedGitObjectError> {
@@ -78,7 +72,7 @@ fn parse_header(header: &str) -> Result<(ObjectTypes, u64), CompressedGitObjectE
 use failure::Fail;
 
 #[derive(PartialEq, Debug, Fail)]
-enum CompressedGitObjectError {
+pub enum CompressedGitObjectError {
   #[fail(display = "Null character not found.")]
   NullCharacterNotFound,
   #[fail(display = "Encoding error.")]
@@ -104,6 +98,14 @@ mod tests {
   use flate2::Compression;
 
   #[test]
+  fn test_parse() {
+    let actual = CompressedGitObject::new(&"blob 1\0a".as_bytes().to_vec()).parse();
+    let expected = (ObjectTypes::Blob, 1, "a".as_bytes().to_vec());
+
+    assert_eq!(actual.unwrap(), expected)
+  }
+
+  #[test]
   fn test_inflate() {
     let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
     encoder.write_all(b"foo").unwrap();
@@ -111,14 +113,6 @@ mod tests {
     let ret = inflate(&compressed_bytes);
 
     assert_eq!(ret, "foo".as_bytes());
-  }
-
-  #[test]
-  fn test_parse_object() {
-    let actual = parse_object(&"blob 1\0a".as_bytes().to_vec());
-    let expected = (ObjectTypes::Blob, 1, "a".as_bytes().to_vec());
-
-    assert_eq!(actual.unwrap(), expected)
   }
 
   #[test]
@@ -165,7 +159,7 @@ mod tests {
 
     assert!(actual.is_err());
   }
-
+  //
   #[test]
   fn test_parse_header_when_arg_does_not_contain_2_more_spaces() {
     let header = "blob hoge 1";

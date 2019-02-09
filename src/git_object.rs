@@ -1,6 +1,9 @@
 use failure::Fail;
 use std::fmt;
 
+// mod super::compressed_git_object;
+use super::compressed_git_object::CompressedGitObject;
+
 #[derive(Debug, PartialEq)]
 pub enum ObjectTypes {
   Blob,
@@ -36,33 +39,35 @@ impl fmt::Display for ObjectTypes {
 }
 
 #[derive(Debug)]
-pub struct GitObject<'a> {
+pub struct GitObject {
   object_type: ObjectTypes,
-  value: &'a [u8],
-  size: u64,
+  length: u64,
+  content: Vec<u8>,
 }
 
-impl<'a> GitObject<'a> {
-  pub fn new(value: &'a [u8]) -> GitObject {
-    let obj = GitObject {
-      object_type: ObjectTypes::Blob,
-      value,
-      size: 0,
-    };
+impl GitObject {
+  pub fn new(object_type: ObjectTypes, length: u64, content: &Vec<u8>) -> GitObject {
+    GitObject {
+      object_type,
+      length,
+      content: content.to_owned(),
+    }
+  }
 
-    obj.parse_object();
+  pub fn from_compressed_git_object(compressed: &CompressedGitObject) -> GitObject {
+    let (object_type, length, content) = compressed.parse().unwrap();
 
-    obj
+    GitObject::new(object_type, length, &content)
   }
 
   pub fn parse_object(&self) {
-    println!("{}", self.size)
+    println!("{}", self.length)
   }
 }
 
-impl<'a> fmt::Display for GitObject<'a> {
+impl fmt::Display for GitObject {
   fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(f, "{}", self.size)
+    write!(f, "{}", self.length)
   }
 }
 
@@ -72,15 +77,8 @@ mod tests {
 
   #[test]
   fn it_works() {
-    let obj = GitObject::new("".as_bytes());
+    // let obj = GitObject::new(&"".as_bytes().to_vec());
 
-    println!("{}", obj)
-  }
-
-  #[test]
-  fn it_works2() {
-    let obj = GitObject::new("".as_bytes());
-
-    obj.parse_object()
+    // println!("{}", obj)
   }
 }
