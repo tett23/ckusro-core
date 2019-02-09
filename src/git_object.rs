@@ -1,12 +1,30 @@
-use std::fmt::{Display, Formatter, Result};
+use failure::Fail;
+use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum ObjectTypes {
   Blob,
 }
 
-impl Display for ObjectTypes {
-  fn fmt(&self, f: &mut Formatter) -> Result {
+impl ObjectTypes {
+  pub fn from_str(name: &str) -> Result<ObjectTypes, ObjectTypesError> {
+    match name {
+      "blob" => Ok(ObjectTypes::Blob),
+      _ => Err(ObjectTypesError::InvalidTypeName {
+        name: name.to_owned(),
+      }),
+    }
+  }
+}
+
+#[derive(PartialEq, Debug, Fail)]
+pub enum ObjectTypesError {
+  #[fail(display = "invalid type name. name = {}", name)]
+  InvalidTypeName { name: String },
+}
+
+impl fmt::Display for ObjectTypes {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(
       f,
       "{}",
@@ -42,8 +60,8 @@ impl<'a> GitObject<'a> {
   }
 }
 
-impl<'a> Display for GitObject<'a> {
-  fn fmt(&self, f: &mut Formatter) -> Result {
+impl<'a> fmt::Display for GitObject<'a> {
+  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
     write!(f, "{}", self.size)
   }
 }

@@ -3,6 +3,8 @@ extern crate flate2;
 use flate2::read::ZlibDecoder;
 use std::io::prelude::*;
 
+use super::git_object::ObjectTypes;
+
 #[derive(Debug)]
 pub struct CompressedGitObject<'a> {
   content: &'a Vec<u8>,
@@ -12,6 +14,12 @@ impl<'a> CompressedGitObject<'a> {
   pub fn new(content: &'a Vec<u8>) -> CompressedGitObject {
     CompressedGitObject { content }
   }
+
+  // pub fn parse(&self) -> GitObject {
+  //   GitObject{
+
+  //   }
+  // }
 }
 
 fn inflate<'a>(value: &'a Vec<u8>) -> Vec<u8> {
@@ -24,11 +32,11 @@ fn inflate<'a>(value: &'a Vec<u8>) -> Vec<u8> {
   ret
 }
 
-fn parse_object(value: &Vec<u8>) -> Result<(String, u64, Vec<u8>), CompressedGitObjectError> {
+fn parse_object(value: &Vec<u8>) -> Result<(ObjectTypes, u64, Vec<u8>), CompressedGitObjectError> {
   let (header, content) = split_object(&value)?;
   let (object_type, length) = parse_header(&header)?;
 
-  Ok((object_type.to_owned(), length, content))
+  Ok((object_type, length, content))
 }
 
 fn split_object(value: &Vec<u8>) -> Result<(String, Vec<u8>), CompressedGitObjectError> {
@@ -43,13 +51,18 @@ fn split_object(value: &Vec<u8>) -> Result<(String, Vec<u8>), CompressedGitObjec
   Ok((header, content))
 }
 
-fn parse_header(header: &str) -> Result<(&str, u64), CompressedGitObjectError> {
+fn parse_header(header: &str) -> Result<(ObjectTypes, u64), CompressedGitObjectError> {
   let mut header = header.split_whitespace();
 
   let object_type = match header.next() {
     Some(v) => Ok(v),
     None => Err(CompressedGitObjectError::InvalidHeader),
   }?;
+  let object_type = match ObjectTypes::from_str(object_type) {
+    Ok(v) => Ok(v),
+    Err(_) => Err(CompressedGitObjectError::InvalidHeader),
+  }?;
+
   let length = match header.next() {
     Some(v) => Ok(v),
     None => Err(CompressedGitObjectError::InvalidHeader),
@@ -59,9 +72,7 @@ fn parse_header(header: &str) -> Result<(&str, u64), CompressedGitObjectError> {
     Err(_) => Err(CompressedGitObjectError::InvalidHeader),
   }?;
 
-  let ret = (object_type, length);
-
-  Ok(ret)
+  Ok((object_type, length))
 }
 
 use failure::Fail;
@@ -80,7 +91,6 @@ fn find_null_pos(content: &Vec<u8>) -> Result<usize, CompressedGitObjectError> {
   const NULL: u8 = 0;
   let pos = content.into_iter().position(|&v| v == NULL);
 
-  // Ok(pos)
   match pos {
     Some(pos) => Ok(pos),
     _ => Err(CompressedGitObjectError::NullCharacterNotFound),
@@ -106,7 +116,7 @@ mod tests {
   #[test]
   fn test_parse_object() {
     let actual = parse_object(&"blob 1\0a".as_bytes().to_vec());
-    let expected = ("blob".to_owned(), 1, "a".as_bytes().to_vec());
+    let expected = (ObjectTypes::Blob, 1, "a".as_bytes().to_vec());
 
     assert_eq!(actual.unwrap(), expected)
   }
@@ -144,7 +154,7 @@ mod tests {
     let header = "blob 1";
     let actual = parse_header(&header).unwrap();
 
-    assert_eq!(actual.0, "blob");
+    assert_eq!(actual.0, ObjectTypes::Blob);
     assert_eq!(actual.1, 1);
   }
 
