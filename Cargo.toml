@@ -6,3 +6,4 @@ edition = "2018"
 
 [dependencies]
 flate2 = { version = "^1.0.6", features = ["rust_backend"], default-features = false }
+failure = { version = "^0.1.5" }

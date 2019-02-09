@@ -1,3 +1,4 @@
+extern crate failure;
 extern crate flate2;
 use flate2::read::ZlibDecoder;
 use std::io::prelude::*;
@@ -23,6 +24,31 @@ fn inflate<'a>(value: &'a Vec<u8>) -> Vec<u8> {
   ret
 }
 
+// fn split_content(value: Vec<u8>) -> (String, Vec<u8>){
+
+// }
+// extern crate io;
+// use io;
+// use std::io;
+use failure::Fail;
+
+#[derive(PartialEq, Debug, Fail)]
+enum CompressedGitObjectError {
+  #[fail(display = "Null character not found.")]
+  NullCharacterNotFound,
+}
+
+fn find_null_pos(content: &Vec<u8>) -> Result<usize, CompressedGitObjectError> {
+  const NULL: u8 = 0;
+  let pos = content.binary_search(&NULL);
+
+  // Ok(pos)
+  match pos {
+    Ok(pos) => Ok(pos),
+    _ => Err(CompressedGitObjectError::NullCharacterNotFound),
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
@@ -37,5 +63,25 @@ mod tests {
     let ret = inflate(&compressed_bytes);
 
     assert_eq!(ret, "foo".as_bytes());
+  }
+
+  #[test]
+  fn test_null_pos() {
+    let content = vec![1, 0, 2];
+    let actual = find_null_pos(&content);
+    let expected: usize = 1;
+
+    assert_eq!(actual.unwrap(), expected);
+  }
+
+  #[test]
+  fn test_null_pos_when_arg_does_not_include_null_character() {
+    let content = vec![1, 2, 3];
+    let actual = find_null_pos(&content);
+
+    assert_eq!(
+      actual.unwrap_err(),
+      CompressedGitObjectError::NullCharacterNotFound
+    );
   }
 }
