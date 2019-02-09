@@ -5,3 +5,4 @@ authors = ["tett23 <tett23@gmail.com>"]
 edition = "2018"
 
 [dependencies]
+flate2 = { version = "^1.0.6", features = ["rust_backend"], default-features = false }
