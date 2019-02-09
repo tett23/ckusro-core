@@ -24,18 +24,44 @@ fn inflate<'a>(value: &'a Vec<u8>) -> Vec<u8> {
   ret
 }
 
-// fn split_content(value: Vec<u8>) -> (String, Vec<u8>){
+// fn split_content(value: Vec<u8>) -> Result<(String, Vec<u8>), CompressedGitObjectError> {
+//   let pos = find_null_pos(&value)?;
+//   let (header, content) = value.split_at(pos);
+//   let content = Vec::from(content);
+//   let header = Vec::from(header);
 
+//   let header = String::from_utf8(header.to_vec()).unwrap();
 // }
-// extern crate io;
-// use io;
-// use std::io;
+
+fn parse_header(header: &str) -> Result<(&str, u8), CompressedGitObjectError> {
+  let mut header = header.split_whitespace();
+
+  let object_type = match header.next() {
+    Some(v) => Ok(v),
+    None => Err(CompressedGitObjectError::InvalidHeader),
+  }?;
+  let length = match header.next() {
+    Some(v) => Ok(v),
+    None => Err(CompressedGitObjectError::InvalidHeader),
+  }?;
+  let length = match length.parse() {
+    Ok(v) => Ok(v),
+    Err(_) => Err(CompressedGitObjectError::InvalidHeader),
+  }?;
+
+  let ret = (object_type, length);
+
+  Ok(ret)
+}
+
 use failure::Fail;
 
 #[derive(PartialEq, Debug, Fail)]
 enum CompressedGitObjectError {
   #[fail(display = "Null character not found.")]
   NullCharacterNotFound,
+  #[fail(display = "Invalid header.")]
+  InvalidHeader,
 }
 
 fn find_null_pos(content: &Vec<u8>) -> Result<usize, CompressedGitObjectError> {
@@ -83,5 +109,30 @@ mod tests {
       actual.unwrap_err(),
       CompressedGitObjectError::NullCharacterNotFound
     );
+  }
+
+  #[test]
+  fn test_parse_header() {
+    let header = "blob 1";
+    let actual = parse_header(&header).unwrap();
+
+    assert_eq!(actual.0, "blob");
+    assert_eq!(actual.1, 1);
+  }
+
+  #[test]
+  fn test_parse_header_when_arg_does_not_contain_spaces() {
+    let header = "blob1";
+    let actual = parse_header(&header);
+
+    assert!(actual.is_err());
+  }
+
+  #[test]
+  fn test_parse_header_when_arg_does_not_contain_2_more_spaces() {
+    let header = "blob hoge 1";
+    let actual = parse_header(&header);
+
+    assert!(actual.is_err());
   }
 }
