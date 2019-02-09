@@ -24,16 +24,26 @@ fn inflate<'a>(value: &'a Vec<u8>) -> Vec<u8> {
   ret
 }
 
-// fn split_content(value: Vec<u8>) -> Result<(String, Vec<u8>), CompressedGitObjectError> {
-//   let pos = find_null_pos(&value)?;
-//   let (header, content) = value.split_at(pos);
-//   let content = Vec::from(content);
-//   let header = Vec::from(header);
+// fn parse_object(value: Vec<u8>) -> Result<(&str, u64, Vec<u8>), CompressedGitObjectError> {
+//   let (header, content) = split_object(&value)?;
+//   let (object_type, length) = parse_header(&header)?;
 
-//   let header = String::from_utf8(header.to_vec()).unwrap();
+//   Ok((object_type, length, content))
 // }
 
-fn parse_header(header: &str) -> Result<(&str, u8), CompressedGitObjectError> {
+fn split_object(value: &Vec<u8>) -> Result<(String, Vec<u8>), CompressedGitObjectError> {
+  let pos = find_null_pos(&value)?;
+  let (header, content) = value.split_at(pos);
+  let content = content[1..].to_vec();
+  let header = match String::from_utf8(header.to_vec()) {
+    Ok(v) => Ok(v),
+    Err(_) => Err(CompressedGitObjectError::EncodingError),
+  }?;
+
+  Ok((header, content))
+}
+
+fn parse_header(header: &str) -> Result<(&str, u64), CompressedGitObjectError> {
   let mut header = header.split_whitespace();
 
   let object_type = match header.next() {
@@ -60,17 +70,20 @@ use failure::Fail;
 enum CompressedGitObjectError {
   #[fail(display = "Null character not found.")]
   NullCharacterNotFound,
+  #[fail(display = "Encoding error.")]
+  EncodingError,
   #[fail(display = "Invalid header.")]
   InvalidHeader,
 }
 
 fn find_null_pos(content: &Vec<u8>) -> Result<usize, CompressedGitObjectError> {
+  println!("find null pos {:?}", content);
   const NULL: u8 = 0;
-  let pos = content.binary_search(&NULL);
+  let pos = content.into_iter().position(|&v| v == NULL);
 
   // Ok(pos)
   match pos {
-    Ok(pos) => Ok(pos),
+    Some(pos) => Ok(pos),
     _ => Err(CompressedGitObjectError::NullCharacterNotFound),
   }
 }
@@ -89,6 +102,15 @@ mod tests {
     let ret = inflate(&compressed_bytes);
 
     assert_eq!(ret, "foo".as_bytes());
+  }
+
+  #[test]
+  fn test_split_object() {
+    println!("{}", &"blob 1\0a");
+    let actual = split_object(&"blob 1\0a".as_bytes().to_vec());
+    let expected = ("blob 1".to_owned(), "a".as_bytes().to_vec());
+
+    assert_eq!(actual.unwrap(), expected)
   }
 
   #[test]
