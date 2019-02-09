@@ -1,0 +1,13 @@
+version: '3'
+
+services:
+  build:
+    build:
+      context: '.'
+      dockerfile: './Dockerfile'
+    command: 'bash -c "yarn run parcel build src/index.ts"'
+    volumes:
+      - ./package.json:/app/package.json
+      - ./yarn.lock:/app/yarn.lock
+      - ./src:/app/src
+      - ./node_modules:/app/node_modules
