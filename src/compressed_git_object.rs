@@ -112,18 +112,20 @@ mod tests {
 
   #[test]
   fn test_inflate() {
-    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
-    encoder.write_all(b"foo").unwrap();
+    let bytes = Vec::from(b"foo".to_vec());
+    let encoder = ZlibEncoder::new(bytes, Compression::default());
     let compressed_bytes = encoder.finish().unwrap();
     let ret = inflate(&compressed_bytes);
 
-    assert_eq!(ret, "foo".as_bytes());
+    assert_eq!(ret, b"foo")
   }
 
   #[test]
   fn test_split_object() {
-    let actual = split_object(&"blob 1\0a".as_bytes().to_vec());
-    let expected = ("blob 1".to_owned(), "a".as_bytes().to_vec());
+    let actual = split_object(&b"blob 1\0a".to_vec());
+    let expected_header = "blob 1".to_owned();
+    let expected_content = b"a".to_vec();
+    let expected = (expected_header, expected_content);
 
     assert_eq!(actual.unwrap(), expected)
   }
