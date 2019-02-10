@@ -1,52 +1,17 @@
-use failure::Fail;
+use git2::ObjectType;
 use std::fmt;
 
-// mod super::compressed_git_object;
 use super::compressed_git_object::CompressedGitObject;
-
-#[derive(Debug, PartialEq)]
-pub enum ObjectTypes {
-  Blob,
-}
-
-impl ObjectTypes {
-  pub fn from_str(name: &str) -> Result<ObjectTypes, ObjectTypesError> {
-    match name {
-      "blob" => Ok(ObjectTypes::Blob),
-      _ => Err(ObjectTypesError::InvalidTypeName {
-        name: name.to_owned(),
-      }),
-    }
-  }
-}
-
-#[derive(PartialEq, Debug, Fail)]
-pub enum ObjectTypesError {
-  #[fail(display = "invalid type name. name = {}", name)]
-  InvalidTypeName { name: String },
-}
-
-impl fmt::Display for ObjectTypes {
-  fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-    write!(
-      f,
-      "{}",
-      match self {
-        ObjectTypes::Blob => "Blob",
-      }
-    )
-  }
-}
 
 #[derive(Debug)]
 pub struct GitObject {
-  object_type: ObjectTypes,
+  object_type: ObjectType,
   length: u64,
   content: Vec<u8>,
 }
 
 impl GitObject {
-  pub fn new(object_type: ObjectTypes, length: u64, content: &Vec<u8>) -> GitObject {
+  pub fn new(object_type: ObjectType, length: u64, content: &Vec<u8>) -> GitObject {
     GitObject {
       object_type,
       length,

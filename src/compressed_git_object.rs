@@ -1,9 +1,8 @@
 extern crate failure;
 extern crate flate2;
 use flate2::read::ZlibDecoder;
+use git2::ObjectType;
 use std::io::prelude::*;
-
-use super::git_object::ObjectTypes;
 
 #[derive(Debug)]
 pub struct CompressedGitObject<'a> {
@@ -15,7 +14,7 @@ impl<'a> CompressedGitObject<'a> {
     CompressedGitObject { content }
   }
 
-  pub fn parse(&self) -> Result<(ObjectTypes, u64, Vec<u8>), CompressedGitObjectError> {
+  pub fn parse(&self) -> Result<(ObjectType, u64, Vec<u8>), CompressedGitObjectError> {
     let inflated = inflate(self.content);
     let (header, content) = split_object(&inflated)?;
     let (object_type, length) = parse_header(&header)?;
@@ -46,17 +45,14 @@ fn split_object(value: &Vec<u8>) -> Result<(String, Vec<u8>), CompressedGitObjec
   Ok((header, content))
 }
 
-fn parse_header(header: &str) -> Result<(ObjectTypes, u64), CompressedGitObjectError> {
+fn parse_header(header: &str) -> Result<(ObjectType, u64), CompressedGitObjectError> {
   let mut header = header.split_whitespace();
 
   let object_type = match header.next() {
     Some(v) => Ok(v),
     None => Err(CompressedGitObjectError::InvalidHeader),
   }?;
-  let object_type = match ObjectTypes::from_str(object_type) {
-    Ok(v) => Ok(v),
-    Err(_) => Err(CompressedGitObjectError::InvalidHeader),
-  }?;
+  let object_type = to_object_type(object_type)?;
 
   let length = match header.next() {
     Some(v) => Ok(v),
@@ -70,6 +66,16 @@ fn parse_header(header: &str) -> Result<(ObjectTypes, u64), CompressedGitObjectE
   Ok((object_type, length))
 }
 
+fn to_object_type(name: &str) -> Result<ObjectType, CompressedGitObjectError> {
+  match name {
+    "blob" => Ok(ObjectType::Blob),
+    "tree" => Ok(ObjectType::Tree),
+    "commit" => Ok(ObjectType::Commit),
+    "tag" => Ok(ObjectType::Tag),
+    _ => Err(CompressedGitObjectError::InvalidTypeName),
+  }
+}
+
 use failure::Fail;
 
 #[derive(PartialEq, Debug, Fail)]
@@ -80,6 +86,8 @@ pub enum CompressedGitObjectError {
   EncodingError,
   #[fail(display = "Invalid header.")]
   InvalidHeader,
+  #[fail(display = "Invalid type name.")]
+  InvalidTypeName,
 }
 
 fn find_null_pos(content: &Vec<u8>) -> Result<usize, CompressedGitObjectError> {
@@ -105,7 +113,7 @@ mod tests {
     let compressed_bytes = encoder.finish().unwrap();
 
     let actual = CompressedGitObject::new(&compressed_bytes).parse();
-    let expected = (ObjectTypes::Blob, 1, "a".as_bytes().to_vec());
+    let expected = (ObjectType::Blob, 1, "a".as_bytes().to_vec());
 
     assert_eq!(actual.unwrap(), expected)
   }
@@ -155,7 +163,7 @@ mod tests {
     let header = "blob 1";
     let actual = parse_header(&header).unwrap();
 
-    assert_eq!(actual.0, ObjectTypes::Blob);
+    assert_eq!(actual.0, ObjectType::Blob);
     assert_eq!(actual.1, 1);
   }
 
@@ -166,12 +174,26 @@ mod tests {
 
     assert!(actual.is_err());
   }
-  //
+
   #[test]
   fn test_parse_header_when_arg_does_not_contain_2_more_spaces() {
     let header = "blob hoge 1";
     let actual = parse_header(&header);
 
     assert!(actual.is_err());
+  }
+
+  #[test]
+  fn test_to_object_type() {
+    let actual = to_object_type(&"blob");
+
+    assert_eq!(actual, Ok(ObjectType::Blob));
+  }
+
+  #[test]
+  fn test_to_object_type_when_passed_invalid_type_name() {
+    let actual = to_object_type(&"invalid_type_name");
+
+    assert_eq!(actual, Err(CompressedGitObjectError::InvalidTypeName));
   }
 }
