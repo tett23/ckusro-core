@@ -16,7 +16,8 @@ impl<'a> CompressedGitObject<'a> {
   }
 
   pub fn parse(&self) -> Result<(ObjectTypes, u64, Vec<u8>), CompressedGitObjectError> {
-    let (header, content) = split_object(&self.content)?;
+    let inflated = inflate(self.content);
+    let (header, content) = split_object(&inflated)?;
     let (object_type, length) = parse_header(&header)?;
 
     Ok((object_type, length, content))
@@ -99,7 +100,11 @@ mod tests {
 
   #[test]
   fn test_parse() {
-    let actual = CompressedGitObject::new(&"blob 1\0a".as_bytes().to_vec()).parse();
+    let bytes = Vec::from(b"blob 1\0a".to_vec());
+    let encoder = ZlibEncoder::new(bytes, Compression::default());
+    let compressed_bytes = encoder.finish().unwrap();
+
+    let actual = CompressedGitObject::new(&compressed_bytes).parse();
     let expected = (ObjectTypes::Blob, 1, "a".as_bytes().to_vec());
 
     assert_eq!(actual.unwrap(), expected)
