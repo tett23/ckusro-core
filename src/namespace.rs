@@ -20,6 +20,16 @@ pub enum NamespaceType {
   Repository,
 }
 
+impl ToString for NamespaceType {
+  fn to_string(&self) -> String {
+    match self {
+      NamespaceType::Domain => "NamespaceType::Domain".to_owned(),
+      NamespaceType::User => "NamespaceType::User".to_owned(),
+      NamespaceType::Repository => "NamespaceType::Repository".to_owned(),
+    }
+  }
+}
+
 #[cfg(test)]
 mod tests {
   use super::*;
