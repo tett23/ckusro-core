@@ -15,7 +15,7 @@ impl<'a> CompressedGitObject<'a> {
   }
 
   pub fn parse(&self) -> Result<(ObjectType, u64, Vec<u8>), CompressedGitObjectError> {
-    let inflated = inflate(self.content);
+    let inflated = inflate(self.content)?;
     let (header, content) = split_object(&inflated)?;
     let (object_type, length) = parse_header(&header)?;
 
@@ -23,14 +23,21 @@ impl<'a> CompressedGitObject<'a> {
   }
 }
 
-fn inflate<'a>(value: &'a Vec<u8>) -> Vec<u8> {
+fn inflate<'a>(value: &'a Vec<u8>) -> Result<Vec<u8>, CompressedGitObjectError> {
+  println!("{:?}", value);
   let value: &[u8] = value;
+  println!("{:?}", value);
   let mut d = ZlibDecoder::new(value);
   let mut ret: Vec<u8> = Vec::new();
 
-  d.read_to_end(&mut ret).unwrap();
-
-  ret
+  match d.read_to_end(&mut ret) {
+    Ok(_) => Ok(ret),
+    Err(err) => {
+      println!("{:?}", ret);
+      println!("{}", err);
+      Err(CompressedGitObjectError::InvalidZlibData)
+    }
+  }
 }
 
 fn split_object(value: &Vec<u8>) -> Result<(String, Vec<u8>), CompressedGitObjectError> {
@@ -81,6 +88,8 @@ use failure::Fail;
 #[derive(PartialEq, Debug, Fail)]
 pub enum CompressedGitObjectError {
   #[fail(display = "Null character not found.")]
+  InvalidZlibData,
+  #[fail(display = "Null character not found.")]
   NullCharacterNotFound,
   #[fail(display = "Encoding error.")]
   EncodingError,
@@ -106,13 +115,17 @@ mod tests {
   use flate2::write::ZlibEncoder;
   use flate2::Compression;
 
+  fn deflate(data: &[u8]) -> Vec<u8> {
+    let mut encoder = ZlibEncoder::new(Vec::new(), Compression::default());
+    encoder.write_all(data).unwrap();
+
+    encoder.finish().unwrap()
+  }
+
   #[test]
   fn test_parse() {
-    let bytes = Vec::from(b"blob 1\0a".to_vec());
-    let encoder = ZlibEncoder::new(bytes, Compression::default());
-    let compressed_bytes = encoder.finish().unwrap();
-
-    let actual = CompressedGitObject::new(&compressed_bytes).parse();
+    let bytes = deflate(b"blob 1\0a");
+    let actual = CompressedGitObject::new(&bytes).parse();
     let expected = (ObjectType::Blob, 1, "a".as_bytes().to_vec());
 
     assert_eq!(actual.unwrap(), expected)
@@ -120,12 +133,11 @@ mod tests {
 
   #[test]
   fn test_inflate() {
-    let bytes = Vec::from(b"foo".to_vec());
-    let encoder = ZlibEncoder::new(bytes, Compression::default());
-    let compressed_bytes = encoder.finish().unwrap();
-    let ret = inflate(&compressed_bytes);
+    let bytes = deflate(b"foo");
+    let actual = inflate(&bytes);
+    let expected = b"foo".to_vec();
 
-    assert_eq!(ret, b"foo")
+    assert_eq!(actual, Ok(expected))
   }
 
   #[test]
