@@ -16,4 +16,6 @@ pub enum Error {
   InvalidTypeName,
   #[fail(display = "Odb initialization failed. detail: {}", detail)]
   OdbInitializationFailed { detail: String },
+  #[fail(display = "{} is not match {}.", t1, t2)]
+  NamespaceMismatch { t1: String, t2: String },
 }
