@@ -14,4 +14,6 @@ pub enum Error {
   InvalidHeader,
   #[fail(display = "Invalid type name.")]
   InvalidTypeName,
+  #[fail(display = "Odb initialization failed. detail: {}", detail)]
+  OdbInitializationFailed { detail: String },
 }

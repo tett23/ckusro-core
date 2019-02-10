@@ -1,3 +1,4 @@
+pub mod bundled_repository;
 pub mod compressed_git_object;
 pub mod error;
 pub mod git_object;
