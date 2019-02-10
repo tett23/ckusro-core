@@ -79,7 +79,7 @@ impl<'a> GetRaw<'a> for RepositoryNamespace<'a> {
 #[derive(PartialEq, Debug)]
 pub struct Namespace {
   name: String,
-  namespace_type: NamespaceType,
+  pub namespace_type: NamespaceType,
 }
 
 impl Namespace {
@@ -105,6 +105,14 @@ impl ToString for NamespaceType {
       NamespaceType::User => "NamespaceType::User".to_owned(),
       NamespaceType::Repository => "NamespaceType::Repository".to_owned(),
     }
+  }
+}
+
+impl Copy for NamespaceType {}
+
+impl Clone for NamespaceType {
+  fn clone(&self) -> Self {
+    *self
   }
 }
 
