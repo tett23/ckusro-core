@@ -1,6 +1,5 @@
-extern crate failure;
 extern crate flate2;
-use failure::Fail;
+use super::error::Error;
 use flate2::read::ZlibDecoder;
 use git2::ObjectType;
 use std::io::prelude::*;
@@ -15,7 +14,7 @@ impl<'a> CompressedGitObject<'a> {
     CompressedGitObject { content }
   }
 
-  pub fn parse(&self) -> Result<(ObjectType, u64, Vec<u8>), CompressedGitObjectError> {
+  pub fn parse(&self) -> Result<(ObjectType, u64, Vec<u8>), Error> {
     let inflated = inflate(self.content)?;
     let (header, content) = split_object(&inflated)?;
     let (object_type, length) = parse_header(&header)?;
@@ -24,81 +23,67 @@ impl<'a> CompressedGitObject<'a> {
   }
 }
 
-fn inflate(value: &Vec<u8>) -> Result<Vec<u8>, CompressedGitObjectError> {
+fn inflate(value: &Vec<u8>) -> Result<Vec<u8>, Error> {
   let value: &[u8] = value;
   let mut d = ZlibDecoder::new(value);
   let mut ret: Vec<u8> = Vec::new();
 
   match d.read_to_end(&mut ret) {
     Ok(_) => Ok(ret),
-    Err(_) => Err(CompressedGitObjectError::InvalidZlibData),
+    Err(_) => Err(Error::InvalidZlibData),
   }
 }
 
-fn split_object(value: &Vec<u8>) -> Result<(String, Vec<u8>), CompressedGitObjectError> {
+fn split_object(value: &Vec<u8>) -> Result<(String, Vec<u8>), Error> {
   let pos = find_null_pos(&value)?;
   let (header, content) = value.split_at(pos);
   let content = content[1..].to_vec();
   let header = match String::from_utf8(header.to_vec()) {
     Ok(v) => Ok(v),
-    Err(_) => Err(CompressedGitObjectError::EncodingError),
+    Err(_) => Err(Error::EncodingError),
   }?;
 
   Ok((header, content))
 }
 
-fn parse_header(header: &str) -> Result<(ObjectType, u64), CompressedGitObjectError> {
+fn parse_header(header: &str) -> Result<(ObjectType, u64), Error> {
   let mut header = header.split_whitespace();
 
   let object_type = match header.next() {
     Some(v) => Ok(v),
-    None => Err(CompressedGitObjectError::InvalidHeader),
+    None => Err(Error::InvalidHeader),
   }?;
   let object_type = to_object_type(object_type)?;
 
   let length = match header.next() {
     Some(v) => Ok(v),
-    None => Err(CompressedGitObjectError::InvalidHeader),
+    None => Err(Error::InvalidHeader),
   }?;
   let length = match length.parse() {
     Ok(v) => Ok(v),
-    Err(_) => Err(CompressedGitObjectError::InvalidHeader),
+    Err(_) => Err(Error::InvalidHeader),
   }?;
 
   Ok((object_type, length))
 }
 
-fn to_object_type(name: &str) -> Result<ObjectType, CompressedGitObjectError> {
+fn to_object_type(name: &str) -> Result<ObjectType, Error> {
   match name {
     "blob" => Ok(ObjectType::Blob),
     "tree" => Ok(ObjectType::Tree),
     "commit" => Ok(ObjectType::Commit),
     "tag" => Ok(ObjectType::Tag),
-    _ => Err(CompressedGitObjectError::InvalidTypeName),
+    _ => Err(Error::InvalidTypeName),
   }
 }
 
-#[derive(PartialEq, Debug, Fail)]
-pub enum CompressedGitObjectError {
-  #[fail(display = "Null character not found.")]
-  InvalidZlibData,
-  #[fail(display = "Null character not found.")]
-  NullCharacterNotFound,
-  #[fail(display = "Encoding error.")]
-  EncodingError,
-  #[fail(display = "Invalid header.")]
-  InvalidHeader,
-  #[fail(display = "Invalid type name.")]
-  InvalidTypeName,
-}
-
-fn find_null_pos(content: &Vec<u8>) -> Result<usize, CompressedGitObjectError> {
+fn find_null_pos(content: &Vec<u8>) -> Result<usize, Error> {
   const NULL: u8 = 0;
   let pos = content.into_iter().position(|&v| v == NULL);
 
   match pos {
     Some(pos) => Ok(pos),
-    _ => Err(CompressedGitObjectError::NullCharacterNotFound),
+    _ => Err(Error::NullCharacterNotFound),
   }
 }
 
@@ -157,10 +142,7 @@ mod tests {
     let content = vec![1, 2, 3];
     let actual = find_null_pos(&content);
 
-    assert_eq!(
-      actual.unwrap_err(),
-      CompressedGitObjectError::NullCharacterNotFound
-    );
+    assert_eq!(actual.unwrap_err(), Error::NullCharacterNotFound);
   }
 
   #[test]
@@ -199,6 +181,6 @@ mod tests {
   fn test_to_object_type_when_passed_invalid_type_name() {
     let actual = to_object_type(&"invalid_type_name");
 
-    assert_eq!(actual, Err(CompressedGitObjectError::InvalidTypeName));
+    assert_eq!(actual, Err(Error::InvalidTypeName));
   }
 }

@@ -1,7 +1,7 @@
+use super::compressed_git_object::CompressedGitObject;
+use super::error::Error;
 use git2::ObjectType;
 use std::fmt;
-
-use super::compressed_git_object::{CompressedGitObject, CompressedGitObjectError};
 
 #[derive(Debug, PartialEq)]
 pub struct GitObject {
@@ -19,7 +19,7 @@ impl GitObject {
     }
   }
 
-  pub fn from_u8_vec(data: &Vec<u8>) -> Result<GitObject, CompressedGitObjectError> {
+  pub fn from_u8_vec(data: &Vec<u8>) -> Result<GitObject, Error> {
     let compressed = CompressedGitObject::new(data);
     let (object_type, length, content) = compressed.parse()?;
 
