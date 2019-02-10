@@ -1,5 +1,6 @@
 extern crate failure;
 extern crate flate2;
+use failure::Fail;
 use flate2::read::ZlibDecoder;
 use git2::ObjectType;
 use std::io::prelude::*;
@@ -23,20 +24,14 @@ impl<'a> CompressedGitObject<'a> {
   }
 }
 
-fn inflate<'a>(value: &'a Vec<u8>) -> Result<Vec<u8>, CompressedGitObjectError> {
-  println!("{:?}", value);
+fn inflate(value: &Vec<u8>) -> Result<Vec<u8>, CompressedGitObjectError> {
   let value: &[u8] = value;
-  println!("{:?}", value);
   let mut d = ZlibDecoder::new(value);
   let mut ret: Vec<u8> = Vec::new();
 
   match d.read_to_end(&mut ret) {
     Ok(_) => Ok(ret),
-    Err(err) => {
-      println!("{:?}", ret);
-      println!("{}", err);
-      Err(CompressedGitObjectError::InvalidZlibData)
-    }
+    Err(_) => Err(CompressedGitObjectError::InvalidZlibData),
   }
 }
 
@@ -82,8 +77,6 @@ fn to_object_type(name: &str) -> Result<ObjectType, CompressedGitObjectError> {
     _ => Err(CompressedGitObjectError::InvalidTypeName),
   }
 }
-
-use failure::Fail;
 
 #[derive(PartialEq, Debug, Fail)]
 pub enum CompressedGitObjectError {
