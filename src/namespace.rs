@@ -1,9 +1,25 @@
+use super::error::Error;
+
 trait GetRaw<'a> {
   fn raw(&self) -> &'a Namespace;
 }
 
 struct DomainNamespace<'a> {
   namespace: &'a Namespace,
+}
+
+impl<'a> DomainNamespace<'a> {
+  pub fn new(namespace: &'a Namespace) -> Result<DomainNamespace, Error> {
+    match &namespace.namespace_type {
+      NamespaceType::Domain => Ok(DomainNamespace {
+        namespace: namespace,
+      }),
+      ns => Err(Error::NamespaceMismatch {
+        t1: "DomainNamespace".to_owned(),
+        t2: ns.to_string(),
+      }),
+    }
+  }
 }
 
 impl<'a> GetRaw<'a> for DomainNamespace<'a> {
@@ -16,6 +32,20 @@ struct UserNamespace<'a> {
   namespace: &'a Namespace,
 }
 
+impl<'a> UserNamespace<'a> {
+  pub fn new(namespace: &'a Namespace) -> Result<UserNamespace, Error> {
+    match &namespace.namespace_type {
+      NamespaceType::User => Ok(UserNamespace {
+        namespace: namespace,
+      }),
+      ns => Err(Error::NamespaceMismatch {
+        t1: "UserNamespace".to_owned(),
+        t2: ns.to_string(),
+      }),
+    }
+  }
+}
+
 impl<'a> GetRaw<'a> for UserNamespace<'a> {
   fn raw(&self) -> &'a Namespace {
     self.namespace
@@ -24,6 +54,20 @@ impl<'a> GetRaw<'a> for UserNamespace<'a> {
 
 struct RepositoryNamespace<'a> {
   namespace: &'a Namespace,
+}
+
+impl<'a> RepositoryNamespace<'a> {
+  pub fn new(namespace: &'a Namespace) -> Result<RepositoryNamespace, Error> {
+    match &namespace.namespace_type {
+      NamespaceType::Repository => Ok(RepositoryNamespace {
+        namespace: namespace,
+      }),
+      ns => Err(Error::NamespaceMismatch {
+        t1: "RepositoryNamespace".to_owned(),
+        t2: ns.to_string(),
+      }),
+    }
+  }
 }
 
 impl<'a> GetRaw<'a> for RepositoryNamespace<'a> {
@@ -102,6 +146,22 @@ mod tests {
   }
 
   #[test]
+  fn test_domain_namespace_new() {
+    let namespace = Namespace::new(NamespaceType::Domain, "github.com");
+    let actual = DomainNamespace::new(&namespace);
+
+    assert!(actual.is_ok());
+  }
+
+  #[test]
+  fn test_domain_namespace_new_when_passed_invalid_namespace_type() {
+    let namespace = Namespace::new(NamespaceType::User, "tett23");
+    let actual = DomainNamespace::new(&namespace);
+
+    assert!(actual.is_err());
+  }
+
+  #[test]
   fn test_domain_namespace_raw() {
     let namespace = Namespace::new(NamespaceType::Domain, "github.com");
     let domain = DomainNamespace {
@@ -111,6 +171,38 @@ mod tests {
     let expected = &namespace;
 
     assert_eq!(actual, expected);
+  }
+
+  #[test]
+  fn test_user_namespace_new() {
+    let namespace = Namespace::new(NamespaceType::User, "tett23");
+    let actual = UserNamespace::new(&namespace);
+
+    assert!(actual.is_ok());
+  }
+
+  #[test]
+  fn test_user_namespace_new_when_passed_invalid_namespace_type() {
+    let namespace = Namespace::new(NamespaceType::Domain, "github.com");
+    let actual = UserNamespace::new(&namespace);
+
+    assert!(actual.is_err());
+  }
+
+  #[test]
+  fn test_repository_namespace_new() {
+    let namespace = Namespace::new(NamespaceType::Repository, "ckusro-core");
+    let actual = RepositoryNamespace::new(&namespace);
+
+    assert!(actual.is_ok());
+  }
+
+  #[test]
+  fn test_repository_namespace_new_when_passed_invalid_namespace_type() {
+    let namespace = Namespace::new(NamespaceType::User, "tett23");
+    let actual = RepositoryNamespace::new(&namespace);
+
+    assert!(actual.is_err());
   }
 
   #[test]
