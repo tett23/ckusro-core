@@ -6,9 +6,10 @@ pub struct PathFragment {
   repository: String,
 }
 
-const USER_SEPARATOR: char = '@';
-
 impl PathFragment {
+  const USER_SEPARATOR: char = '@';
+  const REPOSITORY_SEPARATOR: char = ':';
+
   fn is_valid_format(fragment: &str) -> bool {
     let user_separator_pos = fragment.find('@');
     if user_separator_pos.is_none() {
@@ -23,8 +24,8 @@ impl PathFragment {
     user_separator_pos < repository_separator_pos
   }
 
-  fn split_domain(fragment: &str) -> Result<(&str, &str), Error> {
-    let vec: Vec<&str> = fragment.splitn(2, USER_SEPARATOR).collect();
+  fn split_domain_and_rest(fragment: &str) -> Result<(&str, &str), Error> {
+    let vec: Vec<&str> = fragment.splitn(2, PathFragment::USER_SEPARATOR).collect();
 
     match vec.len() {
       2 => Ok(2),
@@ -44,6 +45,31 @@ impl PathFragment {
     }?;
 
     Ok((domain, rest))
+  }
+
+  fn split_user_and_repository(fragment: &str) -> Result<(&str, &str), Error> {
+    let vec: Vec<&str> = fragment
+      .splitn(2, PathFragment::REPOSITORY_SEPARATOR)
+      .collect();
+
+    match vec.len() {
+      2 => Ok(2),
+      _ => Err(Error::MalformedDomainFragment(fragment.to_owned())),
+    }?;
+
+    let user = match vec.first() {
+      Some(&"") => Err(Error::MalformedDomainFragment(fragment.to_owned())),
+      Some(v) => Ok(v),
+      None => Err(Error::MalformedDomainFragment(fragment.to_owned())),
+    }?;
+
+    let repository = match vec.last() {
+      Some(&"") => Err(Error::MalformedDomainFragment(fragment.to_owned())),
+      Some(v) => Ok(v),
+      None => Err(Error::MalformedDomainFragment(fragment.to_owned())),
+    }?;
+
+    Ok((user, repository))
   }
 }
 
@@ -90,13 +116,13 @@ mod tests {
       }
     }
 
-    mod split_domain {
+    mod split_domain_and_rest {
       use super::*;
 
       #[test]
       fn it_works() {
         let fragment = "github.com@tett23:ckusro-core";
-        let actual = PathFragment::split_domain(fragment);
+        let actual = PathFragment::split_domain_and_rest(fragment);
         let expected = Ok(("github.com", "tett23:ckusro-core"));
 
         assert_eq!(actual, expected);
@@ -106,7 +132,30 @@ mod tests {
       fn it_does_not_works() {
         let data = vec!["", "github.com", "tett23:ckusro-core"];
         for datum in data {
-          let actual = PathFragment::split_domain(datum);
+          let actual = PathFragment::split_domain_and_rest(datum);
+
+          assert!(actual.is_err());
+        }
+      }
+    }
+
+    mod split_user_and_repository {
+      use super::*;
+
+      #[test]
+      fn it_works() {
+        let fragment = "tett23:ckusro-core";
+        let actual = PathFragment::split_user_and_repository(fragment);
+        let expected = Ok(("tett23", "ckusro-core"));
+
+        assert_eq!(actual, expected);
+      }
+
+      #[test]
+      fn it_does_not_works() {
+        let data = vec!["", "tett23"];
+        for datum in data {
+          let actual = PathFragment::split_domain_and_rest(datum);
 
           assert!(actual.is_err());
         }
