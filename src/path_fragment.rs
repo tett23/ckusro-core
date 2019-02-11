@@ -11,6 +11,17 @@ impl PathFragment {
   const USER_SEPARATOR: char = '@';
   const REPOSITORY_SEPARATOR: char = ':';
 
+  pub fn to_string(&self) -> String {
+    format!(
+      "{}{}{}{}{}",
+      self.domain,
+      PathFragment::USER_SEPARATOR,
+      self.user,
+      PathFragment::REPOSITORY_SEPARATOR,
+      self.repository
+    )
+  }
+
   pub fn parse_full_qualified_fragment(fragment: &str) -> Result<PathFragment, Error> {
     if !PathFragment::is_full_qualified_fragment(fragment) {
       return Err(Error::MalformedFragment(fragment.to_owned()));
@@ -23,6 +34,25 @@ impl PathFragment {
         repository: repository.to_owned(),
       }),
       _ => Err(Error::MalformedFragment(fragment.to_owned())),
+    }
+  }
+
+  pub fn parse_relative_fragment(current: &PathFragment, fragment: &str) -> PathFragment {
+    let (domain, user, repository) = PathFragment::split_path_element(fragment);
+
+    PathFragment {
+      domain: match domain {
+        Some(v) => v.to_owned(),
+        None => current.domain.to_owned(),
+      },
+      user: match user {
+        Some(v) => v.to_owned(),
+        None => current.user.to_owned(),
+      },
+      repository: match repository {
+        Some(v) => v.to_owned(),
+        None => current.repository.to_owned(),
+      },
     }
   }
 
@@ -120,6 +150,35 @@ mod tests {
           let actual = PathFragment::parse_full_qualified_fragment(datum);
 
           assert!(actual.is_err());
+        }
+      }
+    }
+
+    mod parse_relative_fragment {
+      use super::*;
+
+      #[test]
+      fn it_works() {
+        let path_fragment =
+          PathFragment::parse_full_qualified_fragment("github.com@tett23:ckusro-core").unwrap();
+        let data = vec![
+          ((&path_fragment, "test_repo"), "github.com@tett23:test_repo"),
+          (
+            (&path_fragment, "test_user:test_repo"),
+            "github.com@test_user:test_repo",
+          ),
+          (
+            (&path_fragment, "example.com@test_user:test_repo"),
+            "example.com@test_user:test_repo",
+          ),
+        ];
+
+        for datum in data {
+          let (args, expected) = datum;
+          let actual = PathFragment::parse_relative_fragment(args.0, args.1);
+          let actual = actual.to_string();
+
+          assert_eq!(actual, expected);
         }
       }
     }
