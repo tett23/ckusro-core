@@ -1,8 +1,12 @@
+use super::error::Error;
+
 pub struct PathFragment {
   domain: String,
   user: String,
   repository: String,
 }
+
+const USER_SEPARATOR: char = '@';
 
 impl PathFragment {
   fn is_valid_format(fragment: &str) -> bool {
@@ -17,6 +21,29 @@ impl PathFragment {
     }
 
     user_separator_pos < repository_separator_pos
+  }
+
+  fn split_domain(fragment: &str) -> Result<(&str, &str), Error> {
+    let vec: Vec<&str> = fragment.splitn(2, USER_SEPARATOR).collect();
+
+    match vec.len() {
+      2 => Ok(2),
+      _ => Err(Error::MalformedDomainFragment(fragment.to_owned())),
+    }?;
+
+    let domain = match vec.first() {
+      Some(&"") => Err(Error::MalformedDomainFragment(fragment.to_owned())),
+      Some(v) => Ok(v),
+      None => Err(Error::MalformedDomainFragment(fragment.to_owned())),
+    }?;
+
+    let rest = match vec.last() {
+      Some(&"") => Err(Error::MalformedDomainFragment(fragment.to_owned())),
+      Some(v) => Ok(v),
+      None => Err(Error::MalformedDomainFragment(fragment.to_owned())),
+    }?;
+
+    Ok((domain, rest))
   }
 }
 
@@ -34,7 +61,6 @@ mod tests {
       fn it_works() {
         let fragment = "github.com@tett23:ckusro-core";
         let actual = PathFragment::is_valid_format(fragment);
-        // let expected = ("github.com", "tett23", "ckusro-core");
 
         assert!(actual);
       }
@@ -61,6 +87,29 @@ mod tests {
         let actual = PathFragment::is_valid_format(fragment);
 
         assert!(!actual);
+      }
+    }
+
+    mod split_domain {
+      use super::*;
+
+      #[test]
+      fn it_works() {
+        let fragment = "github.com@tett23:ckusro-core";
+        let actual = PathFragment::split_domain(fragment);
+        let expected = Ok(("github.com", "tett23:ckusro-core"));
+
+        assert_eq!(actual, expected);
+      }
+
+      #[test]
+      fn it_does_not_works() {
+        let data = vec!["", "github.com", "tett23:ckusro-core"];
+        for datum in data {
+          let actual = PathFragment::split_domain(datum);
+
+          assert!(actual.is_err());
+        }
       }
     }
   }
