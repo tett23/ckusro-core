@@ -4,6 +4,7 @@ pub mod error;
 pub mod git_object;
 pub mod namespace;
 pub mod namespace_ref;
+pub mod path_fragment;
 
 pub fn hoge() -> String {
     // let obj = GitObject::new(&"".as_bytes().to_vec());
