@@ -11,28 +11,22 @@ impl PathFragment {
   const USER_SEPARATOR: char = '@';
   const REPOSITORY_SEPARATOR: char = ':';
 
-  pub fn parse_fragment(fragment: &str) -> Result<PathFragment, Error> {
-    let (domain, user, repository) = PathFragment::split_fragment_string(fragment)?;
-
-    Ok(PathFragment {
-      domain: domain.to_owned(),
-      user: user.to_owned(),
-      repository: repository.to_owned(),
-    })
-  }
-
-  fn split_fragment_string(fragment: &str) -> Result<(&str, &str, &str), Error> {
-    if !PathFragment::is_valid_format(fragment) {
+  pub fn parse_full_qualified_fragment(fragment: &str) -> Result<PathFragment, Error> {
+    if !PathFragment::is_full_qualified_fragment(fragment) {
       return Err(Error::MalformedFragment(fragment.to_owned()));
     }
 
-    let (domain, rest) = PathFragment::split_domain_and_rest(fragment)?;
-    let (user, repository) = PathFragment::split_user_and_repository(rest)?;
-
-    Ok((domain, user, repository))
+    match PathFragment::split_path_element(fragment) {
+      (Some(domain), Some(user), Some(repository)) => Ok(PathFragment {
+        domain: domain.to_owned(),
+        user: user.to_owned(),
+        repository: repository.to_owned(),
+      }),
+      _ => Err(Error::MalformedFragment(fragment.to_owned())),
+    }
   }
 
-  fn is_valid_format(fragment: &str) -> bool {
+  fn is_full_qualified_fragment(fragment: &str) -> bool {
     let user_separator_pos = fragment.find('@');
     if user_separator_pos.is_none() {
       return false;
@@ -46,52 +40,48 @@ impl PathFragment {
     user_separator_pos < repository_separator_pos
   }
 
-  fn split_domain_and_rest(fragment: &str) -> Result<(&str, &str), Error> {
+  fn split_path_element(fragment: &str) -> (Option<&str>, Option<&str>, Option<&str>) {
+    let (repository, rest) = PathFragment::split_repository_and_rest(fragment);
+    let (domain, user) = match rest {
+      Some(v) => PathFragment::split_domain_and_rest(v),
+      None => (None, None),
+    };
+
+    let (domain, user) = match (domain, user) {
+      (Some(d), Some(u)) => (Some(d), Some(u)),
+      (Some(d), None) => (None, Some(d)),
+      _ => (None, None),
+    };
+
+    (domain, user, repository)
+  }
+
+  fn split_domain_and_rest(fragment: &str) -> (Option<&str>, Option<&str>) {
     let vec: Vec<&str> = fragment.splitn(2, PathFragment::USER_SEPARATOR).collect();
 
     match vec.len() {
-      2 => Ok(2),
-      _ => Err(Error::MalformedDomainFragment(fragment.to_owned())),
-    }?;
-
-    let domain = match vec.first() {
-      Some(&"") => Err(Error::MalformedDomainFragment(fragment.to_owned())),
-      Some(v) => Ok(v),
-      None => Err(Error::MalformedDomainFragment(fragment.to_owned())),
-    }?;
-
-    let rest = match vec.last() {
-      Some(&"") => Err(Error::MalformedDomainFragment(fragment.to_owned())),
-      Some(v) => Ok(v),
-      None => Err(Error::MalformedDomainFragment(fragment.to_owned())),
-    }?;
-
-    Ok((domain, rest))
+      1 => match vec.first() {
+        Some(&"") => (None, None),
+        Some(v) => (Some(v), None),
+        None => (None, None),
+      },
+      _ => (Some(*vec.first().unwrap()), Some(*vec.last().unwrap())),
+    }
   }
 
-  fn split_user_and_repository(fragment: &str) -> Result<(&str, &str), Error> {
+  fn split_repository_and_rest(fragment: &str) -> (Option<&str>, Option<&str>) {
     let vec: Vec<&str> = fragment
       .splitn(2, PathFragment::REPOSITORY_SEPARATOR)
       .collect();
 
     match vec.len() {
-      2 => Ok(2),
-      _ => Err(Error::MalformedDomainFragment(fragment.to_owned())),
-    }?;
-
-    let user = match vec.first() {
-      Some(&"") => Err(Error::MalformedDomainFragment(fragment.to_owned())),
-      Some(v) => Ok(v),
-      None => Err(Error::MalformedDomainFragment(fragment.to_owned())),
-    }?;
-
-    let repository = match vec.last() {
-      Some(&"") => Err(Error::MalformedDomainFragment(fragment.to_owned())),
-      Some(v) => Ok(v),
-      None => Err(Error::MalformedDomainFragment(fragment.to_owned())),
-    }?;
-
-    Ok((user, repository))
+      1 => match vec.last() {
+        Some(&"") => (None, None),
+        Some(v) => (Some(v), None),
+        None => (None, None),
+      },
+      _ => (Some(*vec.last().unwrap()), Some(*vec.first().unwrap())),
+    }
   }
 }
 
@@ -102,13 +92,13 @@ mod tests {
   mod path_fragment {
     use super::*;
 
-    mod parse_fragment {
+    mod parse_full_qualified_fragment {
       use super::*;
 
       #[test]
       fn it_works() {
         let fragment = "github.com@tett23:ckusro-core";
-        let actual = PathFragment::parse_fragment(fragment);
+        let actual = PathFragment::parse_full_qualified_fragment(fragment);
         let expected = Ok(PathFragment {
           domain: "github.com".to_owned(),
           user: "tett23".to_owned(),
@@ -127,74 +117,69 @@ mod tests {
           "ckusro-core:github.com@tett23",
         ];
         for datum in data {
-          let actual = PathFragment::parse_fragment(datum);
+          let actual = PathFragment::parse_full_qualified_fragment(datum);
 
           assert!(actual.is_err());
         }
       }
     }
 
-    mod split_fragment_string {
+    mod is_full_qualified_fragment {
       use super::*;
 
       #[test]
       fn it_works() {
-        let fragment = "github.com@tett23:ckusro-core";
-        let actual = PathFragment::split_fragment_string(fragment);
-        let expected = Ok(("github.com", "tett23", "ckusro-core"));
+        let data = vec![("github.com@tett23:ckusro-core", true)];
 
-        assert_eq!(actual, expected);
-      }
-
-      #[test]
-      fn it_does_not_works() {
-        let data = vec![
-          "",
-          "tett23:ckusro-core",
-          "github.com@tett23",
-          "ckusro-core:github.com@tett23",
-        ];
         for datum in data {
-          let actual = PathFragment::split_fragment_string(datum);
+          let (fragment, expected) = datum;
+          let actual = PathFragment::is_full_qualified_fragment(fragment);
 
-          assert!(actual.is_err());
+          assert_eq!(actual, expected);
         }
-      }
-    }
-
-    mod is_valid_format {
-      use super::*;
-
-      #[test]
-      fn it_works() {
-        let fragment = "github.com@tett23:ckusro-core";
-        let actual = PathFragment::is_valid_format(fragment);
-
-        assert!(actual);
       }
 
       #[test]
       fn when_the_argument_does_not_include_user_separator() {
-        let fragment = "tett23:ckusro-core";
-        let actual = PathFragment::is_valid_format(fragment);
+        let data = vec![
+          ("tett23:ckusro-core", false),
+          ("ckusro-core", false),
+          ("", false),
+        ];
 
-        assert!(!actual);
+        for datum in data {
+          let (fragment, expected) = datum;
+          let actual = PathFragment::is_full_qualified_fragment(fragment);
+
+          assert_eq!(actual, expected);
+        }
       }
+    }
+
+    mod split_path_element {
+      use super::*;
 
       #[test]
-      fn when_the_argument_does_not_include_repository_separator() {
-        let fragment = "github.com@tett23";
-        let actual = PathFragment::is_valid_format(fragment);
+      fn it_works() {
+        let data = vec![
+          (
+            "github.com@tett23:ckusro-core",
+            (Some("github.com"), Some("tett23"), Some("ckusro-core")),
+          ),
+          (
+            "tett23:ckusro-core",
+            (None, Some("tett23"), Some("ckusro-core")),
+          ),
+          ("ckusro-core", (None, None, Some("ckusro-core"))),
+          ("", (None, None, None)),
+        ];
 
-        assert!(!actual);
-      }
+        for datum in data {
+          let (fragment, expected) = datum;
+          let actual = PathFragment::split_path_element(fragment);
 
-      #[test]
-      fn when_the_argument_is_malformed_format() {
-        let fragment = "ckusro-core:github.com@tett23";
-        let actual = PathFragment::is_valid_format(fragment);
-
-        assert!(!actual);
+          assert_eq!(actual, expected);
+        }
       }
     }
 
@@ -203,43 +188,45 @@ mod tests {
 
       #[test]
       fn it_works() {
-        let fragment = "github.com@tett23:ckusro-core";
-        let actual = PathFragment::split_domain_and_rest(fragment);
-        let expected = Ok(("github.com", "tett23:ckusro-core"));
+        let data = vec![
+          (
+            "github.com@tett23:ckusro-core",
+            (Some("github.com"), Some("tett23:ckusro-core")),
+          ),
+          ("github.com@tett23", (Some("github.com"), Some("tett23"))),
+          ("github.com", (Some("github.com"), None)),
+          ("", (None, None)),
+        ];
 
-        assert_eq!(actual, expected);
-      }
-
-      #[test]
-      fn it_does_not_works() {
-        let data = vec!["", "github.com", "tett23:ckusro-core"];
         for datum in data {
-          let actual = PathFragment::split_domain_and_rest(datum);
+          let (fragment, expected) = datum;
+          let actual = PathFragment::split_domain_and_rest(fragment);
 
-          assert!(actual.is_err());
+          assert_eq!(actual, expected);
         }
       }
     }
 
-    mod split_user_and_repository {
+    mod split_repository_and_rest {
       use super::*;
 
       #[test]
       fn it_works() {
-        let fragment = "tett23:ckusro-core";
-        let actual = PathFragment::split_user_and_repository(fragment);
-        let expected = Ok(("tett23", "ckusro-core"));
+        let data = vec![
+          (
+            "github.com@tett23:ckusro-core",
+            (Some("ckusro-core"), Some("github.com@tett23")),
+          ),
+          ("tett23:ckusro-core", (Some("ckusro-core"), Some("tett23"))),
+          ("ckusro-core", (Some("ckusro-core"), None)),
+          ("", (None, None)),
+        ];
 
-        assert_eq!(actual, expected);
-      }
-
-      #[test]
-      fn it_does_not_works() {
-        let data = vec!["", "tett23"];
         for datum in data {
-          let actual = PathFragment::split_domain_and_rest(datum);
+          let (fragment, expected) = datum;
+          let actual = PathFragment::split_repository_and_rest(fragment);
 
-          assert!(actual.is_err());
+          assert_eq!(actual, expected);
         }
       }
     }
