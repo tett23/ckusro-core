@@ -76,16 +76,16 @@ use super::error::Error;
 //   }
 // }
 
-#[derive(PartialEq, Debug, Copy, Clone)]
-pub struct Namespace<'a> {
-  name: &'a str,
+#[derive(PartialEq, Debug, Clone)]
+pub struct Namespace {
+  name: String,
   pub namespace_type: NamespaceType,
 }
 
-impl<'a> Namespace<'a> {
-  pub fn new(namespace_type: NamespaceType, name: &'a str) -> Namespace {
+impl Namespace {
+  pub fn new(namespace_type: NamespaceType, name: &str) -> Namespace {
     Namespace {
-      name: name,
+      name: name.to_owned(),
       namespace_type,
     }
   }
@@ -127,7 +127,7 @@ mod tests {
     fn test_new_domain() {
       let actual = Namespace::new(NamespaceType::Domain, "github.com");
       let expected = Namespace {
-        name: "github.com",
+        name: "github.com".to_owned(),
         namespace_type: NamespaceType::Domain,
       };
 
@@ -138,7 +138,7 @@ mod tests {
     fn test_new_user() {
       let actual = Namespace::new(NamespaceType::User, "tett23");
       let expected = Namespace {
-        name: "tett23",
+        name: "tett23".to_owned(),
         namespace_type: NamespaceType::User,
       };
 
@@ -149,7 +149,7 @@ mod tests {
     fn test_new_repository() {
       let actual = Namespace::new(NamespaceType::Repository, "ckusro-core");
       let expected = Namespace {
-        name: "ckusro-core",
+        name: "ckusro-core".to_owned(),
         namespace_type: NamespaceType::Repository,
       };
 

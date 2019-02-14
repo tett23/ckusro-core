@@ -4,18 +4,14 @@ use git2::Oid;
 use std::rc::Rc;
 
 #[derive(Debug, PartialEq, Clone)]
-pub struct NamespaceRef<'a> {
-  namespace: Namespace<'a>,
+pub struct NamespaceRef {
+  namespace: Namespace,
   oid: Oid,
-  pub parent: Option<Rc<&'a NamespaceRef<'a>>>,
+  pub parent: Option<Rc<NamespaceRef>>,
 }
 
-impl<'a> NamespaceRef<'a> {
-  pub fn new(
-    namespace: Namespace<'a>,
-    oid: Oid,
-    parent: Option<Rc<&'a NamespaceRef<'a>>>,
-  ) -> NamespaceRef<'a> {
+impl NamespaceRef {
+  pub fn new(namespace: Namespace, oid: Oid, parent: Option<Rc<NamespaceRef>>) -> NamespaceRef {
     NamespaceRef {
       namespace,
       oid,

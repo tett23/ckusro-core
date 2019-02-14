@@ -6,6 +6,7 @@ pub mod namespace;
 pub mod namespace_ref;
 pub mod namespace_ref_manager;
 pub mod path_fragment;
+pub mod tree;
 
 pub fn hoge() -> String {
   // let obj = GitObject::new(&"".as_bytes().to_vec());

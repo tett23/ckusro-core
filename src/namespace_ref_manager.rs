@@ -3,12 +3,12 @@ use super::namespace::Namespace;
 use super::namespace_ref::NamespaceRef;
 use std::rc::Rc;
 
-pub struct NamespaceRefManager<'a> {
-  namepspace_refs: Vec<Rc<&'a NamespaceRef<'a>>>,
+pub struct NamespaceRefManager {
+  namepspace_refs: Vec<Rc<NamespaceRef>>,
 }
 
-impl<'a> NamespaceRefManager<'a> {
-  pub fn new() -> NamespaceRefManager<'a> {
+impl NamespaceRefManager {
+  pub fn new() -> NamespaceRefManager {
     NamespaceRefManager {
       namepspace_refs: Vec::new(),
     }
