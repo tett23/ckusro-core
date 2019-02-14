@@ -18,4 +18,6 @@ pub enum Error {
   OdbInitializationFailed { detail: String },
   #[fail(display = "{} is not match {}", t1, t2)]
   NamespaceMismatch { t1: String, t2: String },
+  #[fail(display = "Invalid path fragment. fragment={}", _0)]
+  MalformedFragment(String),
 }

@@ -1,6 +1,6 @@
 use super::error::Error;
 
-#[derive(PartialEq, Debug)]
+#[derive(PartialEq, Debug, Clone)]
 pub struct PathFragment {
   pub domain: String,
   pub user: String,
