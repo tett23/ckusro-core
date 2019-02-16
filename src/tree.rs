@@ -1,36 +1,34 @@
-// enum Tree<T> {
-//   Leaf(T),
-//   Node(Box<Tree<T>>, Box<Tree<T>>),
-// }
-
 enum Tree<T> {
-  // Leaf(T),
   Leaf(Box<T>),
-  // Node(Box<Vec<Box<Tree<T>>>>),
-  Node(Vec<Tree<T>>),
+  Node(Box<Option<T>>, Vec<Tree<T>>),
 }
 
 impl<T> Tree<T> {
-  pub fn new_node() -> Tree<T> {
+  pub fn new_node(b: Box<Option<T>>) -> Tree<T> {
     let vec: Vec<Tree<T>> = Vec::new();
 
-    Tree::Node(vec)
+    Tree::Node(b, vec)
   }
 
   pub fn new_leaf(v: T) -> Tree<T> {
     Tree::Leaf(Box::new(v))
   }
-}
 
-// use extern crate tree;
+  pub fn push(&mut self, v: Tree<T>) {
+    match self {
+      Tree::Leaf(_) => panic!(""),
+      Tree::Node(_, vec) => vec.push(v),
+    }
+  }
+}
 
 #[cfg(test)]
 mod tests {
   use super::super::namespace::{Namespace, NamespaceType};
   use super::*;
 
-  fn get_node() -> Box<Tree<Namespace>> {
-    Box::new(Tree::new_node())
+  fn get_node(b: Box<Option<Namespace>>) -> Box<Tree<Namespace>> {
+    Box::new(Tree::new_node(b))
   }
 
   fn fill_tree() -> Box<Tree<Namespace>> {
@@ -39,37 +37,36 @@ mod tests {
       "ckusro",
     )));
 
-    let mut user1 = match *get_node() {
-      Tree::Node(v) => v,
-      Tree::Leaf(_) => panic!(""),
-    };
-    user1.push(repo1);
+    let user_ns = Box::new(Some(Namespace::new(NamespaceType::User, "tett23")));
+    let mut user_node = *get_node(user_ns);
+    user_node.push(repo1);
 
-    let mut domain1 = match *get_node() {
-      Tree::Node(v) => v,
-      Tree::Leaf(_) => panic!(""),
-    };
-    domain1.push(Tree::Node(user1));
+    let domain_ns = Box::new(Some(Namespace::new(NamespaceType::Domain, "github.com")));
+    let mut domain_node = *get_node(domain_ns);
+    domain_node.push(user_node);
 
-    let mut root = match *get_node() {
-      Tree::Node(v) => v,
-      Tree::Leaf(_) => panic!(""),
-    };
+    let mut root_node = *get_node(Box::new(None));
+    root_node.push(domain_node);
 
-    root.push(Tree::Node(domain1));
-
-    Box::new(Tree::Node(root))
+    Box::new(root_node)
   }
 
   fn print_tree(tree: Box<Tree<Namespace>>) {
     match *tree {
-      Tree::Node(v) => {
-        println!("node {}", v.len());
-        for a in v {
+      Tree::Node(ns, vec) => {
+        let ns_name = match *ns {
+          Some(ns) => ns.name(),
+          None => "root".to_owned(),
+        };
+        println!("node {}", ns_name);
+        for a in vec {
           print_tree(Box::new(a))
         }
       }
-      Tree::Leaf(v) => println!("leaf {:?}", v),
+      Tree::Leaf(ns) => {
+        let ns_name = &*ns.name();
+        println!("leaf {}", ns_name)
+      }
     }
   }
 

@@ -89,6 +89,10 @@ impl Namespace {
       namespace_type,
     }
   }
+
+  pub fn name(&self) -> String {
+    self.name.to_owned()
+  }
 }
 
 #[derive(PartialEq, Debug)]
