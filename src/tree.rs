@@ -1,25 +1,26 @@
-enum Tree<T> {
-  Leaf(Box<T>),
-  Node(Box<Option<T>>, Vec<Tree<T>>),
+pub struct Leaf<T>(Box<T>);
+
+impl<T> Leaf<T> {
+  pub fn new(v: T) -> Leaf<T> {
+    Leaf(Box::new(v))
+  }
 }
 
-impl<T> Tree<T> {
-  pub fn new_node(b: Box<Option<T>>) -> Tree<T> {
-    let vec: Vec<Tree<T>> = Vec::new();
+pub struct Node<T>(Box<Option<T>>, Vec<Tree<T>>);
 
-    Tree::Node(b, vec)
-  }
-
-  pub fn new_leaf(v: T) -> Tree<T> {
-    Tree::Leaf(Box::new(v))
+impl<T> Node<T> {
+  pub fn new(v: Option<T>) -> Node<T> {
+    Node(Box::new(v), Vec::new())
   }
 
   pub fn push(&mut self, v: Tree<T>) {
-    match self {
-      Tree::Leaf(_) => panic!(""),
-      Tree::Node(_, vec) => vec.push(v),
-    }
+    self.1.push(v)
   }
+}
+
+pub enum Tree<T> {
+  Leaf(Leaf<T>),
+  Node(Node<T>),
 }
 
 #[cfg(test)]
@@ -27,33 +28,31 @@ mod tests {
   use super::super::namespace::{Namespace, NamespaceType};
   use super::*;
 
-  fn get_node(b: Box<Option<Namespace>>) -> Box<Tree<Namespace>> {
-    Box::new(Tree::new_node(b))
-  }
-
   fn fill_tree() -> Box<Tree<Namespace>> {
-    let repo1 = Tree::Leaf(Box::new(Namespace::new(
+    let repo1 = Leaf(Box::new(Namespace::new(
       NamespaceType::Repository,
       "ckusro",
     )));
 
-    let user_ns = Box::new(Some(Namespace::new(NamespaceType::User, "tett23")));
-    let mut user_node = *get_node(user_ns);
-    user_node.push(repo1);
+    let user_ns = Some(Namespace::new(NamespaceType::User, "tett23"));
+    let mut user_node = Node::new(user_ns);
+    user_node.push(Tree::Leaf(repo1));
 
-    let domain_ns = Box::new(Some(Namespace::new(NamespaceType::Domain, "github.com")));
-    let mut domain_node = *get_node(domain_ns);
-    domain_node.push(user_node);
+    let domain_ns = Some(Namespace::new(NamespaceType::Domain, "github.com"));
+    let mut domain_node = Node::new(domain_ns);
+    domain_node.push(Tree::Node(user_node));
 
-    let mut root_node = *get_node(Box::new(None));
-    root_node.push(domain_node);
+    let mut root_node = Node::new(None);
+    root_node.push(Tree::Node(domain_node));
 
-    Box::new(root_node)
+    Box::new(Tree::Node(root_node))
   }
 
   fn print_tree(tree: Box<Tree<Namespace>>) {
     match *tree {
-      Tree::Node(ns, vec) => {
+      Tree::Node(node) => {
+        let ns = node.0;
+        let vec = node.1;
         let ns_name = match *ns {
           Some(ns) => ns.name(),
           None => "root".to_owned(),
@@ -64,6 +63,7 @@ mod tests {
         }
       }
       Tree::Leaf(ns) => {
+        let ns = ns.0;
         let ns_name = &*ns.name();
         println!("leaf {}", ns_name)
       }
@@ -73,25 +73,6 @@ mod tests {
   #[test]
   fn test_tree() {
     let root = *fill_tree();
-    // let mut root = match root {
-    //   Tree::Node(v) => v,
-    //   Tree::Leaf(_) => panic!(""),
-    // };
-
-    // root.push(*get_node());
-
-    // print_tree(Box::new(Tree::Node(root)));
     print_tree(Box::new(root));
-
-    // println!("{:?}", tree);
-    // // let vec: Box<Vec<Tree<Namespace>>> = Box::new(Vec::new());
-    // let vec: Vec<Tree<Box<Namespace>>> = Vec::new();
-    // let mut tree = Tree::Node(vec);
-    // let leaf1 = Tree::Leaf(Box::new(Namespace::new(NamespaceType::User, "tett23")));
-    // let leaf2 = Tree::Leaf(Box::new(Namespace::new(NamespaceType::User, "test_user")));
-    // vec.push(leaf1);
-    // let mut mt = tree.0;
-
-    // // *tree.push(node2);
   }
 }
