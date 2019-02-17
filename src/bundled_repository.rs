@@ -1,5 +1,6 @@
 use super::error::Error;
-use git2::Odb;
+use git2;
+use git2::{Object, ObjectType, Odb, OdbObject, Oid};
 use std::fmt;
 
 pub struct BundledRepository<'a> {
@@ -18,6 +19,18 @@ impl<'a> BundledRepository<'a> {
     let ret = BundledRepository { odb };
 
     Ok(ret)
+  }
+
+  pub fn find_object(&self, oid: Oid) -> Result<OdbObject, git2::Error> {
+    self.odb.read(oid)
+  }
+
+  pub fn add_object(&self, kind: ObjectType, data: &[u8]) -> Result<Oid, git2::Error> {
+    self.odb.write(kind, data)
+  }
+
+  pub fn exists(&self, oid: Oid) -> bool {
+    self.odb.exists(oid)
   }
 }
 
@@ -42,5 +55,13 @@ mod tests {
     let actual = BundledRepository::new();
 
     assert!(actual.is_ok());
+  }
+
+  fn test_add_object() {
+    let repo = BundledRepository::new().unwrap();
+    let oid = repo.add_object(ObjectType::Blob, b"test file").unwrap();
+    let actual = repo.exists(oid);
+
+    assert!(actual)
   }
 }
