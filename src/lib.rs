@@ -5,6 +5,7 @@ pub mod git_object;
 pub mod namespace;
 pub mod namespace_ref;
 pub mod namespace_ref_manager;
+pub mod namespace_ref_tree;
 pub mod path_fragment;
 pub mod tree;
 

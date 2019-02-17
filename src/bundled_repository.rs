@@ -1,10 +1,16 @@
 use super::error::Error;
+use super::namespace::{Namespace, NamespaceType};
+use super::namespace_ref::NamespaceRef;
+use super::namespace_ref_tree;
+use super::path_fragment::PathFragment;
+use super::tree::{Leaf, Node, Tree};
 use git2;
 use git2::{Object, ObjectType, Odb, OdbObject, Oid};
 use std::fmt;
 
 pub struct BundledRepository<'a> {
   odb: Odb<'a>,
+  reference_tree: Tree<NamespaceRef>,
 }
 
 impl<'a> BundledRepository<'a> {
@@ -16,7 +22,10 @@ impl<'a> BundledRepository<'a> {
       }),
     }?;
 
-    let ret = BundledRepository { odb };
+    let ret = BundledRepository {
+      odb,
+      reference_tree: Tree::Node(Node::new(None)),
+    };
 
     Ok(ret)
   }
@@ -32,6 +41,17 @@ impl<'a> BundledRepository<'a> {
   pub fn exists(&self, oid: Oid) -> bool {
     self.odb.exists(oid)
   }
+
+  // pub fn create_namespace(&self, fragment: &str) -> Result<NamespaceRef, Error> {
+  //   let PathFragment {
+  //     domain,
+  //     user,
+  //     repository,
+  //   } = PathFragment::parse_full_qualified_fragment(fragment)?;
+
+  //   let domain_ns = Namespace::new(NamespaceType::Domain, &domain);
+  //   self.reference_tree.find(domain_ns)
+  // }
 }
 
 impl<'a> fmt::Display for BundledRepository<'a> {

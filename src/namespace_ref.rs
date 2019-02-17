@@ -14,4 +14,12 @@ impl NamespaceRef {
       oid,
     }
   }
+
+  // pub fn namespace(&self) -> Box<Namespace> {
+  //   Box::new(*self.namespace)
+  // }
+
+  pub fn oid(&self) -> Oid {
+    self.oid
+  }
 }

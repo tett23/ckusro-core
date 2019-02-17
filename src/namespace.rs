@@ -79,7 +79,7 @@ use super::error::Error;
 #[derive(PartialEq, Debug, Clone)]
 pub struct Namespace {
   name: String,
-  pub namespace_type: NamespaceType,
+  namespace_type: NamespaceType,
 }
 
 impl Namespace {
@@ -92,6 +92,10 @@ impl Namespace {
 
   pub fn name(&self) -> String {
     self.name.to_owned()
+  }
+
+  pub fn namespace_type(&self) -> NamespaceType {
+    self.namespace_type
   }
 }
 

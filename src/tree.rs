@@ -1,14 +1,16 @@
-pub struct Leaf<T>(Box<T>);
+#[derive(Debug, PartialEq)]
+pub struct Leaf<T: PartialEq>(Box<T>);
 
-impl<T> Leaf<T> {
+impl<T: PartialEq> Leaf<T> {
   pub fn new(v: T) -> Leaf<T> {
     Leaf(Box::new(v))
   }
 }
 
-pub struct Node<T>(Box<Option<T>>, Vec<Tree<T>>);
+#[derive(Debug, PartialEq)]
+pub struct Node<T: PartialEq>(Box<Option<T>>, Vec<Tree<T>>);
 
-impl<T> Node<T> {
+impl<T: PartialEq> Node<T> {
   pub fn new(v: Option<T>) -> Node<T> {
     Node(Box::new(v), Vec::new())
   }
@@ -16,11 +18,45 @@ impl<T> Node<T> {
   pub fn push(&mut self, v: Tree<T>) {
     self.1.push(v)
   }
+
+  pub fn find(&self, value: &T) -> Option<&Tree<T>> {
+    self.1.iter().find(|item| match (*item).find(value) {
+      Some(_) => true,
+      None => false,
+    })
+  }
 }
 
-pub enum Tree<T> {
+#[derive(Debug, PartialEq)]
+pub enum Tree<T: PartialEq> {
   Leaf(Leaf<T>),
   Node(Node<T>),
+}
+
+impl<T: PartialEq> Tree<T> {
+  pub fn find(&self, value: &T) -> Option<&Tree<T>> {
+    match self {
+      Tree::Leaf(Leaf(tag)) => match *value == **tag {
+        true => Some(self),
+        false => None,
+      },
+      Tree::Node(node) => match node {
+        Node(tag, _) => match tag.as_ref() {
+          Some(tag) => match value == tag {
+            true => Some(self),
+            false => match node.find(value) {
+              Some(node) => Some(node),
+              None => {
+                println!("hogehoge");
+                None
+              }
+            },
+          },
+          None => node.find(value),
+        },
+      },
+    }
+  }
 }
 
 #[cfg(test)]
@@ -74,5 +110,27 @@ mod tests {
   fn test_tree() {
     let root = *fill_tree();
     print_tree(Box::new(root));
+  }
+
+  mod tree {
+    use super::super::*;
+    use super::*;
+
+    #[test]
+    fn test_find() {
+      let ns_ref = &Namespace::new(NamespaceType::Domain, "github.com");
+      let ns = Namespace::new(NamespaceType::Domain, "github.com");
+      assert_eq!(ns_ref, &ns);
+
+      let root = *fill_tree();
+      let actual = root.find(&Namespace::new(NamespaceType::Domain, "github.com"));
+
+      println!("Tree::find {:?}", actual);
+      assert!(actual.is_some());
+      // match actual {
+      //   Some(v) => v.
+      // }
+      // assert!(actual.unwrap());
+    }
   }
 }
