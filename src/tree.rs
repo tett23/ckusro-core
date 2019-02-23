@@ -53,7 +53,7 @@ pub enum Tree<T: PartialEq + Debug> {
 }
 
 impl<T: PartialEq + Debug> Tree<T> {
-  fn compare_node(&self, other: &Tree<T>) -> bool {
+  fn compare_tree(&self, other: &Tree<T>) -> bool {
     match (self, other) {
       (Tree::Leaf(Leaf(v1)), Tree::Leaf(Leaf(v2))) => v1 == v2,
       (Tree::Node(_), Tree::Leaf(_)) => false,
@@ -80,7 +80,7 @@ impl<T: PartialEq + Debug> Tree<T> {
   fn _find<'a>(vec: &Vec<&'a Tree<T>>, value: &Tree<T>) -> Option<&'a Tree<T>> {
     let pos = vec
       .into_iter()
-      .position(|item| match item.compare_node(value) {
+      .position(|item| match item.compare_tree(value) {
         true => true,
         false => match item {
           Tree::Leaf(_) => false,
@@ -92,7 +92,7 @@ impl<T: PartialEq + Debug> Tree<T> {
       None => None,
       Some(pos) => {
         let item: &'a Tree<T> = &*vec[pos];
-        match item.compare_node(value) {
+        match item.compare_tree(value) {
           true => Some(item),
           false => match item {
             Tree::Leaf(_) => Some(item),
@@ -156,86 +156,115 @@ mod tests {
   use super::super::namespace::{Namespace, NamespaceType};
   use super::*;
 
-  fn fill_tree() -> Box<Tree<Namespace>> {
-    let repo1 = Leaf(Box::new(Namespace::new(
-      NamespaceType::Repository,
-      "ckusro-core",
-    )));
-
-    let user_ns = Some(Namespace::new(NamespaceType::User, "tett23"));
-    let mut user_node = Node::new(user_ns);
-    user_node.push(Tree::Leaf(repo1));
-
-    let domain_ns = Some(Namespace::new(NamespaceType::Domain, "github.com"));
-    let mut domain_node = Node::new(domain_ns);
-    domain_node.push(Tree::Node(user_node));
-
-    let mut root_node = Node::new(None);
-    root_node.push(Tree::Node(domain_node));
-
-    Box::new(Tree::Node(root_node))
+  macro_rules! node {
+    ($v:expr) => {
+      Tree::Node(Node::new(Some($v)))
+    };
+    () => {
+      Tree::Node(Node::new(None))
+    };
   }
 
-  fn print_tree(tree: Box<Tree<Namespace>>) {
-    match *tree {
-      Tree::Node(node) => {
-        let ns = node.0;
-        let vec = node.1;
-        let ns_name = match *ns {
-          Some(ns) => ns.name(),
-          None => "root".to_owned(),
-        };
-        println!("node {}", ns_name);
-        for a in vec {
-          print_tree(Box::new(a))
-        }
-      }
-      Tree::Leaf(ns) => {
-        let ns = ns.0;
-        let ns_name = &*ns.name();
-        println!("leaf {}", ns_name)
-      }
+  macro_rules! leaf {
+    ($v:expr) => {
+      Tree::Leaf(Leaf::new($v))
+    };
+  }
+
+  fn push_node<T: PartialEq + Debug>(node: &mut Tree<T>, value: Tree<T>) {
+    match node {
+      Tree::Leaf(_) => {}
+      Tree::Node(node) => node.push(value),
     }
   }
 
-  #[test]
-  fn test_tree() {
-    let root = *fill_tree();
-    print_tree(Box::new(root));
+  fn fill_tree() -> Tree<Namespace> {
+    let repo_node = leaf!(Namespace::new(NamespaceType::Repository, "ckusro-core"));
+
+    let mut user_node = node!(Namespace::new(NamespaceType::User, "tett23"));
+    push_node(&mut user_node, repo_node);
+
+    let mut domain_node = node!(Namespace::new(NamespaceType::Domain, "github.com"));
+    push_node(&mut domain_node, user_node);
+
+    let mut root_node = node!();
+    push_node(&mut root_node, domain_node);
+
+    root_node
   }
 
   mod tree {
     use super::*;
 
+    mod compare_tree {
+      use super::*;
+
+      #[test]
+      fn test_node_and_node() {
+        let left = node!("test");
+        let right = node!("test");
+        assert!(left.compare_tree(&right));
+
+        let left = node!("test");
+        let mut right = node!("test");
+        push_node(&mut right, node!("foo"));
+        assert!(left.compare_tree(&right));
+
+        let left = node!("test");
+        let right = node!("hoge");
+        assert!(!left.compare_tree(&right));
+
+        let left = node!("test");
+        let right = node!();
+        assert!(!left.compare_tree(&right));
+      }
+
+      #[test]
+      fn test_node_and_leaf() {
+        let left = node!("test");
+        let right = leaf!("test");
+        assert!(!left.compare_tree(&right));
+      }
+
+      #[test]
+      fn test_leaf_and_node() {
+        let left = leaf!("test");
+        let right = node!("test");
+        assert!(!left.compare_tree(&right));
+      }
+
+      #[test]
+      fn test_leaf_and_leaf() {
+        let left = leaf!("test");
+        let right = leaf!("test");
+        assert!(left.compare_tree(&right));
+
+        let left = leaf!("test");
+        let right = leaf!("hoge");
+        assert!(!left.compare_tree(&right));
+      }
+    }
+
     #[test]
     fn test_find() {
-      let root = *fill_tree();
+      let root = fill_tree();
 
-      let ns = Tree::Node(Node::new(Some(Namespace::new(
-        NamespaceType::Domain,
-        "github.com",
-      ))));
+      let ns = node!(Namespace::new(NamespaceType::Domain, "github.com"));
       let actual = root.find(&ns);
       assert!(actual.is_some());
 
-      let ns = Tree::Node(Node::new(Some(Namespace::new(
-        NamespaceType::User,
-        "tett23",
-      ))));
+      let ns = node!(Namespace::new(NamespaceType::User, "tett23",));
       let actual = root.find(&ns);
       assert!(actual.is_some());
 
-      let ns = Tree::Leaf(Leaf::new(Namespace::new(
-        NamespaceType::Repository,
-        "ckusro-core",
-      )));
+      let ns = leaf!(Namespace::new(NamespaceType::Repository, "ckusro-core"));
       let actual = root.find(&ns);
       assert!(actual.is_some());
     }
 
     #[test]
     fn test_find_by_value() {
-      let root = *fill_tree();
+      let root = fill_tree();
       let actual = root.find_by_value(&Namespace::new(NamespaceType::Domain, "github.com"));
 
       assert!(actual.is_some());
