@@ -1,3 +1,6 @@
+#![feature(generators, generator_trait)]
+#![feature(conservative_impl_trait)]
+
 pub mod bundled_repository;
 pub mod compressed_git_object;
 pub mod error;
@@ -8,6 +11,8 @@ pub mod namespace_ref_manager;
 pub mod namespace_ref_tree;
 pub mod path_fragment;
 pub mod tree;
+pub mod tree_generator;
+pub mod tree2;
 
 pub fn hoge() -> String {
   // let obj = GitObject::new(&"".as_bytes().to_vec());

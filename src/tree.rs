@@ -42,6 +42,10 @@ impl<T: PartialEq + Debug> Node<T> {
 
     return ret;
   }
+
+  pub fn at<'a>(&'a self, n: usize) -> &'a Tree<T> {
+    self.1.iter().nth(n).unwrap()
+  }
 }
 
 use std::fmt::Debug;
